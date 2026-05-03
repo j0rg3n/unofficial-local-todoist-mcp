@@ -1,5 +1,6 @@
 ---
 description: Pull tasks from a Todoist project section, update TODO.md and SPEC.md, commit, push, and mark the source tasks complete. Usage: /todoist-triage <project-name>/<section-name>  (e.g. "huset, hytta o.l./layered-light")
+allowed-tools: mcp__todoist__get_projects, mcp__todoist__get_sections, mcp__todoist__get_tasks, mcp__todoist__get_task, mcp__todoist__get_comments
 ---
 
 Triage Todoist tasks into the project's TODO.md and SPEC.md.
@@ -51,3 +52,21 @@ Once the user approves:
 Call `mcp__todoist__complete_task` for each task ID collected in Step 2.
 
 Report the final count: N tasks triaged, committed, pushed, marked done.
+
+## Step 7 — Offer to add as a daily routine
+
+Check `CLAUDE.md` in the current working directory (or repo root):
+
+1. Search for an existing `todoist-triage` entry covering the same project/section (or filter) as `$ARGUMENTS`.
+   - If one already exists, skip this step entirely.
+2. Search for a record that the user previously declined to add this triage as a routine (a comment or note containing "declined" near a `todoist-triage` entry for the same arguments).
+   - If a decline record exists, skip this step entirely.
+3. Otherwise, ask the user: *"Would you like to add `/todoist-triage $ARGUMENTS` as a daily routine in CLAUDE.md?"*
+   - If the user says **no**: append a short decline record to `CLAUDE.md` so this is not asked again, e.g. `<!-- todoist-triage $ARGUMENTS: routine declined -->`.
+   - If the user says **yes**: ask if there are any additional instructions or peculiarities to record (e.g. "only pick up p1 tasks", "skip items already in TODO.md"). Then append an entry to the `## Daily routines` section of `CLAUDE.md` (create the section if absent) in this format:
+
+```markdown
+- **todoist-triage**: `/todoist-triage $ARGUMENTS` — run daily to pull new tasks from Todoist into this repo. <any additional instructions noted here>
+```
+
+Commit and push the `CLAUDE.md` change with message `Add todoist-triage daily routine`.
