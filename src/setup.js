@@ -87,8 +87,10 @@ async function run() {
   banner();
 
   // Check for existing token
+  let savedClientId = null;
   if (fs.existsSync(CONFIG_PATH)) {
-    const { access_token } = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    const existing = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    savedClientId = existing.client_id || null;
     warn("An existing token was found.");
     const answer = await prompt("Re-authorize? (y/N):");
     if (answer.toLowerCase() !== "y") {
@@ -107,7 +109,7 @@ async function run() {
   print();
   print("  " + c.cyan + "👉  Open this URL in your browser:" + c.reset);
   print();
-  print("      " + c.bold + "https://developer.todoist.com/appconsole.html" + c.reset);
+  print("      " + c.bold + "https://app.todoist.com/app/settings/integrations/app-management" + c.reset);
   print();
   info('Click "Create a new app" and fill in:');
   print();
@@ -121,7 +123,14 @@ async function run() {
   info('Save the app. Then copy your Client ID and Client Secret.');
 
   print();
-  const clientId = await prompt("Paste your Client ID:");
+  let clientId;
+  if (savedClientId) {
+    info(`Using saved Client ID: ${savedClientId}`);
+    const override = await prompt("Use a different Client ID? (leave blank to keep):");
+    clientId = override || savedClientId;
+  } else {
+    clientId = await prompt("Paste your Client ID:");
+  }
   if (!clientId) {
     err("Client ID cannot be empty.");
     process.exit(1);
@@ -209,7 +218,6 @@ async function run() {
     client_id: clientId,
     client_secret: clientSecret,
     code,
-    redirect_uri: REDIRECT_URI,
   });
 
   let tokenData;
