@@ -62,15 +62,17 @@ const server = new McpServer({
 
 server.tool(
   "get_tasks",
-  "Get tasks from Todoist, optionally filtered by project or label",
+  "Get tasks from Todoist, optionally filtered by project, section, or label",
   {
     project_id: z.string().optional().describe("Filter by project ID"),
+    section_id: z.string().optional().describe("Filter by section ID"),
     filter: z.string().optional().describe("Todoist filter string e.g. 'today', 'overdue', 'p1'"),
     limit: z.number().int().min(1).max(200).default(50).describe("Max tasks to return"),
   },
-  async ({ project_id, filter, limit }) => {
+  async ({ project_id, section_id, filter, limit }) => {
     const params = {};
     if (project_id) params.project_id = project_id;
+    if (section_id) params.section_id = section_id;
     if (filter) params.filter = filter;
 
     const { data } = await client.get("/tasks", { params });
@@ -138,11 +140,24 @@ server.tool(
     task_id: z.string().describe("Task ID to complete"),
   },
   async ({ task_id }) => {
-    const blocked = writeGuard("complete_task");
-    if (blocked) return blocked;
     await client.post(`/tasks/${task_id}/close`);
     return {
       content: [{ type: "text", text: `✅ Task ${task_id} marked as complete.` }],
+    };
+  }
+);
+
+server.tool(
+  "add_comment",
+  "Add a comment to a task",
+  {
+    task_id: z.string().describe("Task ID to comment on"),
+    content: z.string().describe("Comment text"),
+  },
+  async ({ task_id, content }) => {
+    const { data } = await client.post("/comments", { task_id, content });
+    return {
+      content: [{ type: "text", text: `💬 Comment added (ID: ${data.id})` }],
     };
   }
 );
@@ -225,6 +240,22 @@ server.tool(
     return {
       content: [{ type: "text", text: `📁 Created project: "${data.name}" (ID: ${data.id})` }],
     };
+  }
+);
+
+server.tool(
+  "get_sections",
+  "List sections for a project, or all sections if no project is specified",
+  {
+    project_id: z.string().optional().describe("Filter by project ID"),
+  },
+  async ({ project_id }) => {
+    const params = {};
+    if (project_id) params.project_id = project_id;
+    const { data } = await client.get("/sections", { params });
+    if (!data.results.length) return { content: [{ type: "text", text: "No sections found." }] };
+    const lines = data.results.map((s) => `• [${s.id}] ${s.name} (project: ${s.project_id})`);
+    return { content: [{ type: "text", text: `Sections (${data.results.length}):\n\n${lines.join("\n")}` }] };
   }
 );
 

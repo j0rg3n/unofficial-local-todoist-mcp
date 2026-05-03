@@ -50,6 +50,7 @@ Restart Claude Desktop after saving.
 | `update_task` | Edit content, due date, or priority |
 | `delete_task` | Delete a task permanently |
 | `get_projects` | List all projects |
+| `get_sections` | List sections, optionally filtered by project |
 | `create_project` | Create a new project |
 | `get_labels` | List all labels |
 
