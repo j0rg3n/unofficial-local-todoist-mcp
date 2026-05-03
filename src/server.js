@@ -58,6 +58,17 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
+async function withRetry(fn, { retries = 3, delayMs = 500 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (attempt >= retries - 1 || e.response?.status !== 503) throw e;
+      await new Promise((r) => setTimeout(r, delayMs * 2 ** attempt));
+    }
+  }
+}
+
 // ── Tools ──────────────────────────────────────────────────────────────────
 
 server.tool(
@@ -140,7 +151,7 @@ server.tool(
     task_id: z.string().describe("Task ID to complete"),
   },
   async ({ task_id }) => {
-    await client.post(`/tasks/${task_id}/close`);
+    await withRetry(() => client.post(`/tasks/${task_id}/close`));
     return {
       content: [{ type: "text", text: `✅ Task ${task_id} marked as complete.` }],
     };
