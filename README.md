@@ -45,6 +45,8 @@ Restart Claude Desktop after saving.
 | Tool | Description |
 |------|-------------|
 | `get_tasks` | List tasks, filter by project or Todoist filter string |
+| `get_task` | Get full details for a single task (description, labels, due date, comments count) |
+| `get_comments` | Get comments for a task |
 | `create_task` | Create a task with natural language due dates |
 | `complete_task` | Mark a task as done |
 | `update_task` | Edit content, due date, or priority |

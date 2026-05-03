@@ -72,6 +72,42 @@ async function withRetry(fn, { retries = 3, delayMs = 500 } = {}) {
 // ── Tools ──────────────────────────────────────────────────────────────────
 
 server.tool(
+  "get_task",
+  "Get full details for a single task including description, labels, due date, and priority",
+  {
+    task_id: z.string().describe("Task ID to retrieve"),
+  },
+  async ({ task_id }) => {
+    const { data: t } = await client.get(`/tasks/${task_id}`);
+    const lines = [
+      `**${t.content}** (ID: ${t.id})`,
+      `Project: ${t.project_id}${t.section_id ? ` / Section: ${t.section_id}` : ""}`,
+      `Priority: p${5 - t.priority}`,
+      t.due ? `Due: ${t.due.date}${t.due.string ? ` (${t.due.string})` : ""}` : "Due: none",
+      t.labels?.length ? `Labels: ${t.labels.join(", ")}` : "Labels: none",
+      `Description: ${t.description || "(none)"}`,
+      `Comments: ${t.note_count}`,
+      `Added: ${t.added_at}`,
+    ];
+    return { content: [{ type: "text", text: lines.join("\n") }] };
+  }
+);
+
+server.tool(
+  "get_comments",
+  "Get comments for a task",
+  {
+    task_id: z.string().describe("Task ID to fetch comments for"),
+  },
+  async ({ task_id }) => {
+    const { data } = await client.get("/comments", { params: { task_id } });
+    if (!data.results.length) return { content: [{ type: "text", text: "No comments." }] };
+    const lines = data.results.map((c) => `[${c.posted_at.slice(0, 10)}] ${c.content}`);
+    return { content: [{ type: "text", text: `Comments (${data.results.length}):\n\n${lines.join("\n")}` }] };
+  }
+);
+
+server.tool(
   "get_tasks",
   "Get tasks from Todoist, optionally filtered by project, section, or label",
   {
