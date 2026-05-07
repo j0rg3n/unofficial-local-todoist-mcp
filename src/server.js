@@ -307,6 +307,24 @@ server.tool(
 );
 
 server.tool(
+  "add_label",
+  "Add a label to a task without affecting its other labels",
+  {
+    task_id: z.string().describe("Task ID to label"),
+    label: z.string().describe("Label name to add"),
+  },
+  async ({ task_id, label }) => {
+    const { data: task } = await client.get(`/tasks/${task_id}`);
+    const current = task.labels ?? [];
+    if (current.includes(label)) {
+      return { content: [{ type: "text", text: `ℹ️ Task already has label "${label}".` }] };
+    }
+    await client.post(`/tasks/${task_id}`, { labels: [...current, label] });
+    return { content: [{ type: "text", text: `🏷️ Added label "${label}" to task ${task_id}.` }] };
+  }
+);
+
+server.tool(
   "get_labels",
   "List all Todoist labels",
   {},

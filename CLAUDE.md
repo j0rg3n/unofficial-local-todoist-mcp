@@ -4,7 +4,7 @@
 
 - `WRITE_ENABLED = false` in `src/server.js` by default. Do not enable or test write operations unless explicitly asked.
 - Do not test write endpoints via curl or MCP tools speculatively.
-- `complete_task` and `add_comment` intentionally bypass the write lock and are always available.
+- `complete_task`, `add_comment`, and `add_label` intentionally bypass the write lock and are always available.
 - `complete_task` must **always** require user approval — never add it to `allowed-tools` in any skill.
 
 ## API

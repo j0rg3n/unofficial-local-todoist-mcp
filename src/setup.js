@@ -86,60 +86,54 @@ function prompt(question) {
 async function run() {
   banner();
 
-  // Check for existing token
+  // Load saved credentials
   let savedClientId = null;
+  let savedClientSecret = null;
   if (fs.existsSync(CONFIG_PATH)) {
     const existing = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     savedClientId = existing.client_id || null;
-    warn("An existing token was found.");
-    const answer = await prompt("Re-authorize? (y/N):");
-    if (answer.toLowerCase() !== "y") {
-      success("Setup skipped. Existing token retained.");
-      process.exit(0);
-    }
-    print();
+    savedClientSecret = existing.client_secret || null;
   }
 
-  // ── Step 1: Create Todoist App ──────────────────────────────────────────
-  step(1, 3, "Create a Todoist App");
-
-  print();
-  info("You need a Todoist developer app to get OAuth credentials.");
-  info("This takes about 60 seconds.");
-  print();
-  print("  " + c.cyan + "👉  Open this URL in your browser:" + c.reset);
-  print();
-  print("      " + c.bold + "https://app.todoist.com/app/settings/integrations/app-management" + c.reset);
-  print();
-  info('Click "Create a new app" and fill in:');
-  print();
-  print(`  ${c.dim}App name:${c.reset}    ${c.bold}Todoist MCP${c.reset}  (or anything you like)`);
-  print(`  ${c.dim}App service URL:${c.reset}  ${c.bold}http://localhost${c.reset}`);
-  print();
-  info('After creating, find "OAuth Redirect URLs" and add:');
-  print();
-  print("      " + c.bold + REDIRECT_URI + c.reset);
-  print();
-  info('Save the app. Then copy your Client ID and Client Secret.');
-
-  print();
   let clientId;
-  if (savedClientId) {
-    info(`Using saved Client ID: ${savedClientId}`);
-    const override = await prompt("Use a different Client ID? (leave blank to keep):");
-    clientId = override || savedClientId;
-  } else {
-    clientId = await prompt("Paste your Client ID:");
-  }
-  if (!clientId) {
-    err("Client ID cannot be empty.");
-    process.exit(1);
-  }
+  let clientSecret;
 
-  const clientSecret = await prompt("Paste your Client Secret:");
-  if (!clientSecret) {
-    err("Client Secret cannot be empty.");
-    process.exit(1);
+  if (savedClientId && savedClientSecret) {
+    // Fast path: credentials on file — skip Step 1, go straight to OAuth.
+    success(`Using saved credentials (client_id: ${savedClientId}).`);
+    info("Skipping app setup — going straight to authorization.");
+    print();
+    clientId = savedClientId;
+    clientSecret = savedClientSecret;
+  } else {
+    // ── Step 1: Create Todoist App ────────────────────────────────────────
+    step(1, 3, "Create a Todoist App");
+
+    print();
+    info("You need a Todoist developer app to get OAuth credentials.");
+    info("This takes about 60 seconds.");
+    print();
+    print("  " + c.cyan + "👉  Open this URL in your browser:" + c.reset);
+    print();
+    print("      " + c.bold + "https://app.todoist.com/app/settings/integrations/app-management" + c.reset);
+    print();
+    info('Click "Create a new app" and fill in:');
+    print();
+    print(`  ${c.dim}App name:${c.reset}    ${c.bold}Todoist MCP${c.reset}  (or anything you like)`);
+    print(`  ${c.dim}App service URL:${c.reset}  ${c.bold}http://localhost${c.reset}`);
+    print();
+    info('After creating, find "OAuth Redirect URLs" and add:');
+    print();
+    print("      " + c.bold + REDIRECT_URI + c.reset);
+    print();
+    info('Save the app. Then copy your Client ID and Client Secret.');
+    print();
+
+    clientId = await prompt("Paste your Client ID:");
+    if (!clientId) { err("Client ID cannot be empty."); process.exit(1); }
+
+    clientSecret = await prompt("Paste your Client Secret:");
+    if (!clientSecret) { err("Client Secret cannot be empty."); process.exit(1); }
   }
 
   // ── Step 2: Open browser for OAuth ────────────────────────────────────
@@ -240,6 +234,7 @@ async function run() {
     access_token: tokenData.access_token,
     token_type: tokenData.token_type || "Bearer",
     client_id: clientId,
+    client_secret: clientSecret,
     authorized_at: new Date().toISOString(),
   };
 
