@@ -1,6 +1,6 @@
 ---
 description: Pull tasks from a Todoist project section, update TODO.md and SPEC.md, commit, push, and mark the source tasks complete. Usage: /todoist-triage <project-name>/<section-name>  (e.g. "huset, hytta o.l./layered-light")
-allowed-tools: mcp__todoist__get_projects, mcp__todoist__get_sections, mcp__todoist__get_tasks, mcp__todoist__get_task, mcp__todoist__get_comments
+allowed-tools: mcp__todoist__get_projects, mcp__todoist__get_sections, mcp__todoist__get_tasks, mcp__todoist__get_task, mcp__todoist__get_comments, mcp__todoist__reauthorize
 ---
 
 Triage Todoist tasks into the project's TODO.md and SPEC.md.
@@ -8,6 +8,16 @@ Triage Todoist tasks into the project's TODO.md and SPEC.md.
 The argument is a Todoist path in the form `<project-name>/<section-name>`, e.g. `huset, hytta o.l./layered-light`. Both parts are matched case-insensitively by substring.
 
 ---
+
+## Step 0 — Check authorization
+
+Before doing anything else, call `mcp__todoist__get_projects`. If it fails with a 401 error:
+
+1. Call `mcp__todoist__reauthorize`. It will return an authorization URL.
+2. Show the URL to the user and ask them to open it in their browser.
+3. Tell them to let you know once they've completed the flow.
+4. Wait for the user to confirm, then retry `mcp__todoist__get_projects`.
+5. If it fails again, stop and report the error.
 
 ## Step 1 — Locate the section
 
