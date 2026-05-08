@@ -43,15 +43,33 @@ function writeGuard(toolName) {
   return null;
 }
 
-const token = loadToken();
-if (!token) {
+let currentToken = loadToken();
+if (!currentToken) {
   process.stderr.write(
     "No Todoist token found. Run: node src/setup.js\n"
   );
   process.exit(1);
 }
 
-const client = api(token);
+function buildClient(t) {
+  const instance = api(t);
+  instance.interceptors.response.use(null, async (error) => {
+    if (error.response?.status === 401 && !error.config._retry) {
+      const freshToken = loadToken();
+      if (freshToken && freshToken !== currentToken) {
+        error.config._retry = true;
+        currentToken = freshToken;
+        client = buildClient(freshToken);
+        error.config.headers["Authorization"] = `Bearer ${freshToken}`;
+        return axios.request(error.config);
+      }
+    }
+    return Promise.reject(error);
+  });
+  return instance;
+}
+
+let client = buildClient(currentToken);
 
 const server = new McpServer({
   name: "todoist",
