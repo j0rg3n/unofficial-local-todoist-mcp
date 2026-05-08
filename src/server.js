@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import axios from "axios";
 import fs from "fs";
+import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -351,6 +352,76 @@ server.tool(
     if (!data.results.length) return { content: [{ type: "text", text: "No labels found." }] };
     const lines = data.results.map((l) => `• [${l.id}] ${l.name}`);
     return { content: [{ type: "text", text: `Labels:\n\n${lines.join("\n")}` }] };
+  }
+);
+
+server.tool(
+  "reauthorize",
+  "Start a new OAuth flow to refresh the Todoist access token. Starts a local callback server, returns the authorization URL to open in your browser, and saves the new token automatically when the flow completes — no restart needed.",
+  {},
+  async () => {
+    const config = fs.existsSync(CONFIG_PATH)
+      ? JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"))
+      : {};
+
+    if (!config.client_id || !config.client_secret) {
+      return {
+        content: [{ type: "text", text: "No OAuth credentials found. Run `node src/setup.js` first to set up the app." }],
+      };
+    }
+
+    const REDIRECT_PORT = 45678;
+    const state = Math.random().toString(36).slice(2);
+    const authUrl =
+      `https://todoist.com/oauth/authorize` +
+      `?client_id=${encodeURIComponent(config.client_id)}` +
+      `&scope=${encodeURIComponent("data:read_write")}` +
+      `&state=${state}`;
+
+    // Start callback server in the background — resolves asynchronously after user authorizes.
+    const srv = http.createServer(async (req, res) => {
+      const url = new URL(req.url, `http://localhost:${REDIRECT_PORT}`);
+      if (url.pathname !== "/callback") { res.writeHead(404); res.end(); return; }
+
+      const oauthErr = url.searchParams.get("error");
+      if (oauthErr || url.searchParams.get("state") !== state) {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end("<p style='font-family:sans-serif;padding:2rem'>❌ Authorization failed. Please try again.</p>");
+        srv.close();
+        return;
+      }
+
+      const code = url.searchParams.get("code");
+      const params = new URLSearchParams({ client_id: config.client_id, client_secret: config.client_secret, code });
+      try {
+        const { data: tokenData } = await axios.post(
+          "https://todoist.com/oauth/access_token",
+          params.toString(),
+          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        );
+        if (tokenData.access_token) {
+          fs.writeFileSync(CONFIG_PATH, JSON.stringify({ ...config, access_token: tokenData.access_token, authorized_at: new Date().toISOString() }, null, 2));
+          try { fs.chmodSync(CONFIG_PATH, 0o600); } catch {}
+          currentToken = tokenData.access_token;
+          client = buildClient(currentToken);
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end("<p style='font-family:sans-serif;padding:2rem'>✅ Authorized! Token saved. You can close this tab.</p>");
+        } else {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end("<p style='font-family:sans-serif;padding:2rem'>❌ Token exchange failed. Please try again.</p>");
+        }
+      } catch {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end("<p style='font-family:sans-serif;padding:2rem'>❌ Token exchange failed. Please try again.</p>");
+      }
+      srv.close();
+    });
+    srv.on("error", () => {});
+    srv.listen(REDIRECT_PORT);
+
+    return {
+      content: [{ type: "text", text: `Open this URL in your browser to re-authorize:\n\n${authUrl}\n\nThe token will reload automatically once you complete the flow.` }],
+    };
   }
 );
 
