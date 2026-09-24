@@ -2,6 +2,10 @@
 
 A local MCP server that connects Claude Desktop to your Todoist account via OAuth.
 
+## Project is archived: Todoist have now provided their own, official MCP and Connector
+
+This project is therefore mostly redundant, and will be archived.
+
 ## Requirements
 
 - Node.js 18+
